@@ -1,0 +1,113 @@
+<div class="app-shell">
+  <nav class="navbar navbar-dark app-navbar">
+    <div class="container-fluid content-width">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+        <span class="brand-mark">L</span>
+        <span>Lead<span class="brand-light">Desk</span></span>
+      </a>
+      <span class="navbar-text text-white-50 small">Lead Management</span>
+    </div>
+  </nav>
+
+  <main class="container-fluid content-width py-4 py-lg-5">
+    <div class="page-heading d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+      <div>
+        <div class="eyebrow">WORKSPACE / CONTACTS</div>
+        <h1 class="h2 mb-1">Lead management</h1>
+        <p class="text-secondary mb-0">Import, search and export your lead records.</p>
+      </div>
+      <div class="total-chip"><span class="status-dot"></span>{{ totalCount }} total leads</div>
+    </div>
+
+    <div *ngIf="errorMessage" class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+      <span aria-hidden="true">!</span><div>{{ errorMessage }}</div>
+    </div>
+    <div *ngIf="successMessage" class="alert alert-success" role="status">{{ successMessage }}</div>
+
+    <section class="card import-card mb-4">
+      <div class="card-body p-3 p-lg-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+          <div class="d-flex gap-3">
+            <div class="section-icon">⇧</div>
+            <div>
+              <h2 class="h6 mb-1">Import leads from Excel</h2>
+              <p class="text-secondary small mb-2">Upload an .xlsx workbook with Name and Mobile Number. Email is optional.</p>
+              <span class="file-hint">Maximum file size: 10 MB · Duplicate mobile numbers or emails are skipped.</span>
+            </div>
+          </div>
+          <div class="import-actions d-flex flex-column flex-sm-row align-items-stretch gap-2">
+            <input class="form-control form-control-sm file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" (change)="onFileSelected($event)" aria-label="Choose Excel file">
+            <button class="btn btn-primary btn-sm px-3" (click)="importFile()" [disabled]="!selectedFile || importing">
+              <span *ngIf="importing" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+              {{ importing ? 'Importing…' : 'Import file' }}
+            </button>
+          </div>
+        </div>
+        <div *ngIf="importResult" class="import-summary mt-4 pt-3">
+          <div class="row g-3">
+            <div class="col-6 col-md-3"><div class="summary-label">Rows processed</div><div class="summary-value">{{ importResult.totalRows }}</div></div>
+            <div class="col-6 col-md-3"><div class="summary-label">Imported</div><div class="summary-value text-success">{{ importResult.importedCount }}</div></div>
+            <div class="col-6 col-md-3"><div class="summary-label">Already exist</div><div class="summary-value text-warning-emphasis">{{ importResult.existingCount }}</div></div>
+            <div class="col-6 col-md-3"><div class="summary-label">Invalid rows</div><div class="summary-value text-danger">{{ importResult.invalidCount }}</div></div>
+          </div>
+          <ul *ngIf="importResult.errors.length" class="small text-secondary mt-3 mb-0 error-list">
+            <li *ngFor="let message of importResult.errors.slice(0, 8)">{{ message }}</li>
+            <li *ngIf="importResult.errors.length > 8">And {{ importResult.errors.length - 8 }} more row messages.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card table-card">
+      <div class="card-body p-0">
+        <div class="table-toolbar d-flex flex-column flex-md-row justify-content-between gap-3 p-3 p-lg-4">
+          <div>
+            <h2 class="h6 mb-1">All leads</h2>
+            <p class="text-secondary small mb-0">Browse records and find a contact quickly.</p>
+          </div>
+          <div class="d-flex flex-column flex-sm-row gap-2 toolbar-actions">
+            <form class="search-form d-flex" (ngSubmit)="search()">
+              <input class="form-control form-control-sm" type="search" [(ngModel)]="searchText" name="search" placeholder="Search name, mobile, email" aria-label="Search leads">
+              <button class="btn btn-outline-secondary btn-sm" type="submit">Search</button>
+              <button *ngIf="appliedSearch" class="btn btn-light btn-sm" type="button" (click)="clearSearch()" aria-label="Clear search">×</button>
+            </form>
+            <button class="btn btn-outline-primary btn-sm" (click)="exportFile()" [disabled]="exporting">
+              <span aria-hidden="true">↓</span> {{ exporting ? 'Exporting…' : 'Export .xlsx' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead><tr><th class="ps-4">CONTACT</th><th>MOBILE NUMBER</th><th>EMAIL ADDRESS</th><th>CREATED (UTC)</th></tr></thead>
+            <tbody>
+              <tr *ngIf="loading"><td colspan="4" class="text-center py-5 text-secondary"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Loading leads…</td></tr>
+              <tr *ngFor="let lead of leads">
+                <td class="ps-4"><div class="contact-cell"><span class="avatar">{{ lead.name.charAt(0).toUpperCase() }}</span><span class="contact-name">{{ lead.name }}</span></div></td>
+                <td class="mobile-cell">{{ lead.mobileNumber }}</td>
+                <td class="email-cell">{{ lead.email || '—' }}</td>
+                <td class="date-cell">{{ lead.createdAtUtc | date:'dd MMM yyyy, HH:mm':'UTC' }}</td>
+              </tr>
+              <tr *ngIf="!loading && leads.length === 0"><td colspan="4" class="empty-state text-center py-5"><div class="empty-icon">⌕</div><div class="fw-semibold text-dark">No leads found</div><div class="small text-secondary mt-1">Try a different search or import an Excel file.</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 p-3 p-lg-4">
+          <div class="small text-secondary">Showing <strong>{{ firstRecord }}</strong>–<strong>{{ lastRecord }}</strong> of <strong>{{ totalCount }}</strong></div>
+          <div class="d-flex align-items-center gap-3">
+            <label class="small text-secondary d-flex align-items-center gap-2">Rows
+              <select class="form-select form-select-sm page-size" [value]="pageSize" (change)="changePageSize($any($event.target).value)" aria-label="Rows per page"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select>
+            </label>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Pagination">
+              <button class="btn btn-outline-secondary" (click)="changePage(pageNumber - 1)" [disabled]="pageNumber <= 1 || loading" aria-label="Previous page">‹</button>
+              <button class="btn btn-outline-secondary page-indicator" disabled>{{ pageNumber }} / {{ totalPages }}</button>
+              <button class="btn btn-outline-secondary" (click)="changePage(pageNumber + 1)" [disabled]="pageNumber >= totalPages || loading" aria-label="Next page">›</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <footer class="text-center text-secondary small py-4">LeadDesk <span class="mx-1">·</span> Built for reliable lead handling</footer>
+  </main>
+</div>
